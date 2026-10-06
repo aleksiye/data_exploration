@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SN Ia Follow-up</title>
+<style>
+  :root {
+    --bg: #f6f6f3; --surface: #ffffff; --ink: #161616; --ink-2: #55534e; --muted: #8a8780;
+    --line: #e4e2dc; --line-2: #efede8; --accent: #2a78d6; --accent-soft: #e7f0fb;
+    --done: #1a7f4b; --done-soft: #e3f3ea; --skip: #6d6b66; --skip-soft: #efeeea; --warn: #b3261e;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 2px 8px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111111; --surface: #1a1a1a; --ink: #ececea; --ink-2: #b4b2ac; --muted: #85837d;
+      --line: #2c2c2b; --line-2: #232322; --accent: #5ea2f1; --accent-soft: #1b2a3c;
+      --done: #4cc58a; --done-soft: #17301f; --skip: #a3a19b; --skip-soft: #262624; --warn: #f2867f;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.45 "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; }
+  button, input { font: inherit; color: inherit; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px;
+           padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 16px; font-weight: 600; white-space: nowrap; }
+  header h1 span { color: var(--muted); font-weight: 400; }
+  .search { flex: 1; max-width: 420px; position: relative; }
+  .search input { width: 100%; padding: 7px 12px 7px 32px; border: 1px solid var(--line); border-radius: 8px;
+                  background: var(--bg); }
+  .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  .who { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--ink-2); white-space: nowrap; }
+  .who input { width: 140px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: calc(100vh - 53px); }
+  aside { border-right: 1px solid var(--line); padding: 16px 12px; background: var(--surface); }
+  aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+             margin: 0 8px 10px; font-weight: 600; }
+  .night-item { display: block; width: 100%; text-align: left; border: 0; background: none; cursor: pointer;
+                padding: 10px; border-radius: 8px; margin-bottom: 2px; }
+  .night-item:hover { background: var(--line-2); }
+  .night-item.active { background: var(--accent-soft); }
+  .night-item .date { font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  .night-item .meta { color: var(--ink-2); font-size: 12.5px; margin: 2px 0 6px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 99px;
+           background: var(--accent); color: var(--surface); }
+  .bar { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; display: flex; }
+  .bar i { display: block; height: 100%; }
+  .bar .o { background: var(--done); } .bar .s { background: var(--skip); }
+
+  main { padding: 22px 28px 60px; min-width: 0; }
+  .title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .title h2 { margin: 0; font-size: 22px; font-weight: 600; }
+  .sub { color: var(--ink-2); margin: 4px 0 16px; }
+  .progress { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .progress .bar { flex: 1; max-width: 360px; height: 8px; }
+  .progress strong { font-size: 15px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .chip { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 4px 12px;
+          cursor: pointer; color: var(--ink-2); }
+  .chip.active { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+  .chip b { font-weight: 600; margin-left: 4px; color: var(--muted); }
+  .spacer { flex: 1; }
+  .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+  .btn:hover { border-color: var(--muted); }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
+          overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 10px 12px;
+       border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--line-2); vertical-align: middle; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; }
+  .obj { font-weight: 600; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13px; }
+  .links { font-size: 12px; color: var(--muted); }
+  .links a { margin-right: 8px; }
+  .coord { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13px; }
+  .dim { color: var(--muted); }
+  tr.is-observed td { background: color-mix(in srgb, var(--done-soft) 55%, transparent); }
+  tr.is-skipped td { color: var(--muted); }
+  tr.flash td { animation: flash 2.4s ease-out; }
+  @keyframes flash { from { background: var(--accent-soft); } to { background: transparent; } }
+
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: var(--surface); padding: 4px 10px; cursor: pointer; color: var(--ink-2); }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button:hover { background: var(--line-2); }
+  .seg button.on-todo { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+  .seg button.on-observed { background: var(--done-soft); color: var(--done); font-weight: 600; }
+  .seg button.on-skipped { background: var(--skip-soft); color: var(--skip); font-weight: 600; }
+  .by { display: block; font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+  .note { width: 220px; padding: 5px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; }
+  .note:hover { border-color: var(--line); }
+  .note:focus { border-color: var(--accent); background: var(--bg); outline: none; }
+  .pill { font-size: 12px; padding: 1px 8px; border-radius: 99px; }
+  .pill.yes { background: var(--done-soft); color: var(--done); }
+  .pill.no { background: var(--skip-soft); color: var(--skip); }
+
+  .empty { padding: 48px 20px; text-align: center; color: var(--ink-2); }
+  .empty strong { display: block; color: var(--ink); font-size: 16px; margin-bottom: 4px; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink);
+           color: var(--bg); padding: 8px 16px; border-radius: 8px; opacity: 0; transition: opacity .2s;
+           pointer-events: none; }
+  #toast.show { opacity: 1; }
+
+  @media (max-width: 800px) {
+    header { flex-wrap: wrap; padding: 10px 16px; }
+    .who { margin-left: 0; }
+    .layout { grid-template-columns: 1fr; }
+    aside { border-right: 0; border-bottom: 1px solid var(--line); max-height: 220px; overflow-y: auto; }
+    main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>SN Ia follow-up <span>· nightly candidates</span></h1>
+  <label class="search">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="5"/><path d="m11 11 4 4"/></svg>
+    <input id="search" type="search" placeholder="Search every night by ZTF ID, e.g. ZTF25acg" autocomplete="off" aria-label="Search by ZTF ID">
+  </label>
+  <label class="who">You <input id="user" placeholder="your name" maxlength="40" aria-label="Your name"></label>
+</header>
+<div class="layout">
+  <aside>
+    <h2>Nights</h2>
+    <nav id="nights"></nav>
+  </aside>
+  <main id="main"></main>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+"use strict";
+
+// --- small helpers -------------------------------------------------------------------------------
+function el(tag, props = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props)) {
+    if (value == null || value === false) continue;
+    if (key === "class") node.className = value;
+    else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+    else node.setAttribute(key, value === true ? "" : value);
+  }
+  for (const child of children.flat()) {
+    if (child == null || child === false) continue;
+    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  return node;
+}
+
+const store = {
+  get(key) { try { return localStorage.getItem(key) || ""; } catch { return ""; } },
+  set(key, value) { try { localStorage.setItem(key, value); } catch { /* private mode: fine */ } },
+};
+
+async function api(path, options) {
+  const response = await fetch(path, options);
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || response.statusText);
+  return body;
+}
+
+let toastTimer;
+function toast(message) {
+  const t = document.getElementById("toast");
+  t.textContent = message;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+function sexagesimal(value, decimals) {
+  const scale = 10 ** decimals;
+  const total = Math.round(value * 3600 * scale) / scale;
+  const a = Math.floor(total / 3600), b = Math.floor((total - a * 3600) / 60), c = total - a * 3600 - b * 60;
+  return `${String(a).padStart(2, "0")}:${String(b).padStart(2, "0")}:${c.toFixed(decimals).padStart(decimals + 3, "0")}`;
+}
+const fmtRA = (deg) => sexagesimal(deg / 15, 2);
+const fmtDec = (deg) => (deg < 0 ? "-" : "+") + sexagesimal(Math.abs(deg), 1);
+const fmtDays = (days, isLimit) => days == null ? "–" : `${isLimit ? ">" : ""}${days.toFixed(1)}`;
+const fmtNight = (night, style = "long") => new Date(`${night}T00:00:00Z`).toLocaleDateString(undefined,
+  style === "long" ? { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }
+                   : { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+const fmtTime = (iso) => iso ? new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "";
+
+function progressBar(observed, skipped, total) {
+  const pct = (n) => total ? `${(100 * n / total).toFixed(1)}%` : "0%";
+  return el("div", { class: "bar", role: "img", "aria-label": `${observed} observed, ${skipped} skipped of ${total}` },
+            el("i", { class: "o", style: `width:${pct(observed)}` }), el("i", { class: "s", style: `width:${pct(skipped)}` }));
+}
+
+function brokerLinks(id) {
+  return el("div", { class: "links" },
+    el("a", { href: `https://alerce.online/object/${id}`, target: "_blank", rel: "noopener" }, "ALeRCE"),
+    el("a", { href: `https://fink-portal.org/${id}`, target: "_blank", rel: "noopener" }, "Fink"),
+    el("a", { href: `https://lasair-ztf.lsst.ac.uk/objects/${id}/`, target: "_blank", rel: "noopener" }, "Lasair"));
+}
+
+// --- state and routing ------------------------------------------------------------------------------
+const state = { nights: [], night: null, data: null, filter: "todo", query: "", highlight: null };
+const STATUS_LABEL = { todo: "To do", observed: "Observed", skipped: "Skipped" };
+
+function writeHash() {
+  const params = new URLSearchParams();
+  if (state.query) params.set("q", state.query); else if (state.night) params.set("night", state.night);
+  history.replaceState(null, "", `#${params}`);
+}
+
+// --- nights sidebar ----------------------------------------------------------------------------------
+async function loadNights() {
+  state.nights = await api("/api/nights");
+  const nav = document.getElementById("nights");
+  nav.replaceChildren(...state.nights.map((n, i) => {
+    const handled = n.observed + n.skipped;
+    return el("button", { class: `night-item${!state.query && n.night === state.night ? " active" : ""}`,
+                          onclick: () => openNight(n.night) },
+      el("div", { class: "date" }, fmtNight(n.night, "short"), i === 0 ? el("span", { class: "badge" }, "Latest") : null),
+      el("div", { class: "meta" }, `${n.selected} candidates · ${handled === n.selected && n.selected ? "all handled" : `${handled} handled`}`),
+      progressBar(n.observed, n.skipped, n.selected));
+  }));
+  if (!state.nights.length) nav.replaceChildren(el("div", { class: "dim", style: "padding:0 8px" }, "No nights yet."));
+}
+
+// --- one night's worklist -------------------------------------------------------------------------------
+async function openNight(night, highlight = null) {
+  state.query = "";
+  document.getElementById("search").value = "";
+  state.night = night;
+  state.highlight = highlight;
+  if (highlight) state.filter = "all";
+  writeHash();
+  await Promise.all([loadNight(), loadNights()]);
+}
+
+async function loadNight() {
+  if (!state.night) return renderNight();
+  try {
+    state.data = await api(`/api/night?night=${encodeURIComponent(state.night)}`);
+  } catch (error) {
+    state.data = null;
+    toast(error.message);
+  }
+  renderNight();
+}
+
+function counts(candidates) {
+  const c = { todo: 0, observed: 0, skipped: 0, all: candidates.length };
+  for (const x of candidates) c[x.status] += 1;
+  return c;
+}
+
+function renderNight() {
+  const main = document.getElementById("main");
+  const d = state.data;
+  if (!d) {
+    main.replaceChildren(el("div", { class: "card empty" }, el("strong", {}, "No closed nights yet"),
+      "Nights appear here as soon as the classifier service closes them."));
+    return;
+  }
+  const isLatest = state.nights.length && state.nights[0].night === d.night;
+  const n = counts(d.candidates);
+  const handled = n.observed + n.skipped;
+  const shown = d.candidates.filter((c) => state.filter === "all" || c.status === state.filter);
+
+  const chips = ["todo", "observed", "skipped", "all"].map((key) =>
+    el("button", { class: `chip${state.filter === key ? " active" : ""}`, onclick: () => { state.filter = key; renderNight(); } },
+       key === "all" ? "All" : STATUS_LABEL[key], el("b", {}, n[key])));
+
+  main.replaceChildren(
+    el("div", { class: "title" }, el("h2", {}, `Night of ${fmtNight(d.night)}`),
+       isLatest ? el("span", { class: "badge" }, "Last night's backlog") : null),
+    el("p", { class: "sub" },
+       `${d.alerts_tonight} alerts · ${d.eligible_tonight} with P(Ia) ≥ ${d.threshold.toFixed(3)} · `,
+       `${d.candidates.length} selected (limit ${d.capacity}) · model ${d.model_version}`),
+    el("div", { class: "progress" },
+       el("strong", {}, `${handled} of ${n.all} handled`),
+       progressBar(n.observed, n.skipped, n.all),
+       el("span", { class: "dim" }, `${n.observed} observed · ${n.skipped} skipped · ${n.todo} to do`)),
+    el("div", { class: "toolbar" }, chips, el("span", { class: "spacer" }),
+       el("button", { class: "btn", onclick: copyTargets, title: "Copy the to-do targets as a plain-text list" }, "Copy to-do targets"),
+       el("button", { class: "btn", onclick: exportCsv }, "Export CSV")),
+    el("div", { class: "card" }, shown.length ? candidateTable(shown)
+       : el("div", { class: "empty" }, el("strong", {}, state.filter === "todo" ? "Nothing left to do" : "Nothing here"),
+            state.filter === "todo" ? "Every candidate from this night has been handled." : "No candidates with this status.")));
+
+  if (state.highlight) {
+    const row = document.getElementById(`row-${state.highlight}`);
+    if (row) { row.scrollIntoView({ block: "center" }); row.classList.add("flash"); }
+    state.highlight = null;
+  }
+}
+
+function candidateTable(candidates) {
+  return el("table", {},
+    el("thead", {}, el("tr", {},
+      el("th", { class: "num" }, "#"), el("th", {}, "Object"), el("th", { class: "num" }, "P(Ia)"),
+      el("th", {}, "RA"), el("th", {}, "Dec"), el("th", { class: "num" }, "Peak mag"),
+      el("th", { class: "num", title: "Rise and fade times in days; > means a lower limit" }, "Rise / fade (d)"),
+      el("th", {}, "Status"), el("th", {}, "Note"))),
+    el("tbody", {}, candidates.map(candidateRow)));
+}
+
+function candidateRow(c) {
+  const segment = el("div", { class: "seg", role: "group", "aria-label": `Status of ${c.ztf_id}` },
+    ["todo", "observed", "skipped"].map((s) => el("button", {
+      class: c.status === s ? `on-${s}` : "", "aria-pressed": String(c.status === s),
+      onclick: () => c.status !== s && save(c, { status: s }) }, STATUS_LABEL[s])));
+  const note = el("input", { class: "note", value: c.note, placeholder: "add a note", maxlength: "500",
+                             "aria-label": `Note for ${c.ztf_id}`,
+                             onchange: (e) => save(c, { note: e.target.value }),
+                             onkeydown: (e) => { if (e.key === "Enter") e.target.blur(); } });
+  return el("tr", { id: `row-${c.ztf_id}`, class: `is-${c.status}` },
+    el("td", { class: "num dim" }, c.rank),
+    el("td", {}, el("div", { class: "obj" }, c.ztf_id), brokerLinks(c.ztf_id)),
+    el("td", { class: "num" }, c.p_ia.toFixed(3)),
+    el("td", { class: "coord" }, c.ra_deg != null ? fmtRA(c.ra_deg) : "–"),
+    el("td", { class: "coord" }, c.dec_deg != null ? fmtDec(c.dec_deg) : "–"),
+    el("td", { class: "num" }, c.peak_mag != null ? `${c.peak_mag.toFixed(2)} ` : "–", el("span", { class: "dim" }, c.peak_filter || "")),
+    el("td", { class: "num" }, `${fmtDays(c.rise_days, c.rise_is_limit)} / ${fmtDays(c.fade_days, c.fade_is_limit)}`),
+    el("td", {}, segment, c.updated_by || (c.status !== "todo" && c.updated_at)
+      ? el("span", { class: "by" }, [c.updated_by && `by ${c.updated_by}`, fmtTime(c.updated_at)].filter(Boolean).join(", ")) : null),
+    el("td", {}, note));
+}
+
+async function save(candidate, change) {
+  const payload = { night: state.data.night, ztf_id: candidate.ztf_id, status: candidate.status, note: candidate.note,
+                    by: document.getElementById("user").value.trim(), ...change };
+  try {
+    Object.assign(candidate, await api("/api/progress", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }));
+    if (change.status) renderNight(); else toast("Note saved");
+    loadNights();
+  } catch (error) {
+    toast(`Not saved: ${error.message}`);
+  }
+}
+
+function todoLines() {
+  const rows = state.data.candidates.filter((c) => c.status === "todo");
+  return [`# SN Ia candidates to observe, night ${state.data.night} (${rows.length})`,
+          "# ztf_id        ra           dec          peak_mag  filter  p_ia",
+          ...rows.map((c) => [c.ztf_id.padEnd(14), fmtRA(c.ra_deg), fmtDec(c.dec_deg).padEnd(12),
+                              c.peak_mag.toFixed(2).padStart(8), (c.peak_filter || "").padStart(7), c.p_ia.toFixed(3).padStart(6)].join("  "))];
+}
+
+function download(filename, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  el("a", { href: url, download: filename }).click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function copyTargets() {
+  const text = todoLines().join("\n") + "\n";
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("To-do targets copied to the clipboard");
+  } catch {
+    download(`targets-${state.data.night}.txt`, text, "text/plain");      // clipboard needs https or localhost
+  }
+}
+
+function exportCsv() {
+  const cols = ["rank", "ztf_id", "p_ia", "ra_deg", "dec_deg", "peak_mag", "peak_filter", "rise_days", "rise_is_limit",
+                "fade_days", "fade_is_limit", "status", "note", "updated_by", "updated_at"];
+  const quote = (v) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const lines = [cols.join(","), ...state.data.candidates.map((c) => cols.map((k) => quote(c[k])).join(","))];
+  download(`candidates-${state.data.night}.csv`, lines.join("\n") + "\n", "text/csv");
+}
+
+// --- search across all nights -----------------------------------------------------------------------------
+let searchTimer;
+function onSearchInput(e) {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => runSearch(e.target.value.trim()), 250);
+}
+
+async function runSearch(query) {
+  state.query = query;
+  writeHash();
+  if (!query) { await Promise.all([loadNight(), loadNights()]); return; }
+  const main = document.getElementById("main");
+  if (query.length < 3) {
+    main.replaceChildren(el("div", { class: "card empty" }, "Type at least 3 characters of a ZTF ID."));
+    return;
+  }
+  let results;
+  try { results = await api(`/api/search?q=${encodeURIComponent(query)}`); }
+  catch (error) { toast(error.message); return; }
+  if (query !== state.query) return;               // a newer search has started
+  loadNights();
+  main.replaceChildren(
+    el("div", { class: "title" }, el("h2", {}, `Search: ${query}`)),
+    el("p", { class: "sub" }, results.length === 50 ? "Showing the first 50 matches. Type more of the ID to narrow it down."
+                                                    : `${results.length} classified object${results.length === 1 ? "" : "s"} match.`),
+    el("div", { class: "card" }, results.length ? el("table", {},
+      el("thead", {}, el("tr", {}, el("th", {}, "Object"), el("th", {}, "Alert night"), el("th", { class: "num" }, "P(Ia)"),
+                                    el("th", {}, "Above threshold"), el("th", {}, "On the list"), el("th", {}, "Status"))),
+      el("tbody", {}, results.map((r) => el("tr", {},
+        el("td", {}, el("div", { class: "obj" }, r.ztf_id), brokerLinks(r.ztf_id)),
+        el("td", {}, fmtNight(r.night, "short")),
+        el("td", { class: "num" }, r.p_ia.toFixed(3)),
+        el("td", {}, el("span", { class: `pill ${r.eligible ? "yes" : "no"}` }, r.eligible ? "yes" : "no")),
+        el("td", {}, r.selected_night
+          ? el("a", { href: "#", onclick: (e) => { e.preventDefault(); openNight(r.selected_night, r.ztf_id); } },
+               `#${r.rank} on ${fmtNight(r.selected_night, "short")}`)
+          : el("span", { class: "dim" }, r.eligible ? "no: night was full" : "no: below threshold")),
+        el("td", {}, r.status ? STATUS_LABEL[r.status] : el("span", { class: "dim" }, "–"))))))
+      : el("div", { class: "empty" }, el("strong", {}, "No matches"), "No classified object has an ID containing that text.")));
+}
+
+// --- start -------------------------------------------------------------------------------------------------
+async function refresh() {
+  if (document.activeElement && document.activeElement.classList.contains("note")) return;   // don't disturb typing
+  try {
+    await loadNights();
+    if (!state.query) await loadNight();
+  } catch { /* server briefly unavailable: try again next time */ }
+}
+
+async function start() {
+  const user = document.getElementById("user");
+  user.value = store.get("ztf-dashboard-user");
+  user.addEventListener("change", () => store.set("ztf-dashboard-user", user.value.trim()));
+  const search = document.getElementById("search");
+  search.addEventListener("input", onSearchInput);
+
+  const params = new URLSearchParams(location.hash.slice(1));
+  try { await loadNights(); } catch (error) { toast(`Can't reach the dashboard server: ${error.message}`); }
+  if (params.get("q")) {
+    search.value = params.get("q");
+    state.night = state.nights[0]?.night ?? null;
+    await runSearch(params.get("q"));
+  } else {
+    const wanted = params.get("night");
+    state.night = state.nights.some((n) => n.night === wanted) ? wanted : state.nights[0]?.night ?? null;
+    writeHash();
+    await Promise.all([loadNight(), loadNights()]);
+  }
+  setInterval(refresh, 30_000);        // pick up new nights and teammates' changes
+}
+start();
+</script>
+</body>
+</html>
